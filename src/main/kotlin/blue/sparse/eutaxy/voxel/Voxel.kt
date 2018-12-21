@@ -5,4 +5,8 @@ inline class Voxel(val color: Int) {
 
 	val isEmpty: Boolean
 		get() = color == 0
+
+	companion object {
+		val empty = Voxel(0)
+	}
 }

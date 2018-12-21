@@ -1,11 +1,13 @@
 package blue.sparse.eutaxy.render.texture
 
-import blue.sparse.engine.asset.Asset
 import blue.sparse.engine.render.resource.Texture
 import blue.sparse.math.vectors.floats.Vector4f
 import blue.sparse.math.vectors.ints.Vector2i
 import java.awt.Color
 import java.awt.image.BufferedImage
+import java.io.File
+import javax.imageio.ImageIO
+import kotlin.math.max
 
 class OfflineChunkTexture {
 
@@ -14,7 +16,7 @@ class OfflineChunkTexture {
 	private val sprites = ArrayList<Sprite>()
 
 	fun addSprite(image: BufferedImage): Sprite {
-		val size = Vector2i(image.width, image.height)
+		val size = Vector2i(image.width, image.height) + 2
 		val position = findAvailableSpace(size)
 
 //		texture.subImage(image, position)
@@ -25,14 +27,16 @@ class OfflineChunkTexture {
 	}
 
 	fun renderToImage(): BufferedImage {
-		val result = BufferedImage(size.x, size.y, BufferedImage.TYPE_INT_ARGB)
+		val result = BufferedImage(max(size.x, 1), max(size.y, 1), BufferedImage.TYPE_INT_ARGB)
 		val graphics = result.createGraphics()
 		graphics.color = Color(0, 0, 0, 0)
 		graphics.fillRect(0, 0, result.width, result.height)
 
-		for(sprite in sprites) {
-			graphics.drawImage(sprite.image, sprite.min.x, sprite.min.y, null)
+		for (sprite in sprites) {
+			graphics.drawImage(sprite.image, sprite.min.x + 1, sprite.min.y + 1, null)
 		}
+
+//		ImageIO.write(result, "PNG", File("atlas.png"))
 
 		return result
 	}

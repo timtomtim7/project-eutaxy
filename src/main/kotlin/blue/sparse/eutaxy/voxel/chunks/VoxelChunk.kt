@@ -3,7 +3,10 @@ package blue.sparse.eutaxy.voxel.chunks
 import blue.sparse.eutaxy.voxel.Voxel
 import blue.sparse.math.vectors.ints.Vector3i
 
-abstract class VoxelChunk(val parent: ChunkParent, val id: Long, val size: Int): Iterable<Voxel> {
+abstract class VoxelChunk(val parent: ChunkParent, parentRelativePosition: Vector3i, val size: Int): Iterable<Voxel> {
+
+	val parentRelativePosition: Vector3i = parentRelativePosition
+		get() = field.clone()
 
 	val volume: Int = size * size * size
 
@@ -18,7 +21,7 @@ abstract class VoxelChunk(val parent: ChunkParent, val id: Long, val size: Int):
 		set(getIndex(x, y, z), voxel)
 	}
 
-	operator fun get(position: Vector3i): Voxel? {
+	operator fun get(position: Vector3i): Voxel {
 		return get(position.x, position.y, position.z)
 	}
 

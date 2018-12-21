@@ -1,4 +1,4 @@
-package blue.sparse.eutaxy.render
+package blue.sparse.eutaxy.render.model
 
 import blue.sparse.engine.render.camera.Camera
 import blue.sparse.engine.render.resource.Texture
@@ -10,9 +10,10 @@ import blue.sparse.math.vectors.floats.Vector3f
 class ChunkModel(val position: Vector3f, val vertexArray: VertexArray, val texture: Texture) {
 
 	private val modelMatrix = Matrix4f.translation(position)
+	val triCount = vertexArray.size / 3
 
 	fun render(camera: Camera, shader: ShaderProgram) {
-		texture.bind()
+		texture.bind(0)
 		shader.uniforms["uViewProj"] = camera.viewProjectionMatrix
 		shader.uniforms["uModel"] = modelMatrix
 		shader.uniforms["uAtlasSize"] = texture.size.toFloatVector()

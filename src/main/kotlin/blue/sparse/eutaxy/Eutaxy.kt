@@ -2,50 +2,33 @@ package blue.sparse.eutaxy
 
 import blue.sparse.engine.SparseGame
 import blue.sparse.engine.asset.Asset
-import blue.sparse.engine.math.int
 import blue.sparse.engine.render.camera.FirstPerson
+import blue.sparse.engine.render.resource.Texture
 import blue.sparse.engine.render.resource.bind
 import blue.sparse.engine.render.resource.shader.ShaderProgram
-import blue.sparse.engine.render.scene.component.ShaderSkybox
 import blue.sparse.engine.render.scene.component.Skybox
+import blue.sparse.engine.window.input.Key
 import blue.sparse.engine.window.input.MouseButton
-import blue.sparse.eutaxy.render.ChunkModel
+import blue.sparse.eutaxy.render.PostProcessing
 import blue.sparse.eutaxy.util.Perlin
 import blue.sparse.eutaxy.voxel.Voxel
-import blue.sparse.eutaxy.voxel.chunks.ChunkParent
-import blue.sparse.eutaxy.voxel.chunks.DetailedChunk
-import blue.sparse.eutaxy.voxel.chunks.VoxelChunk
+import blue.sparse.eutaxy.voxel.World
 import blue.sparse.math.vectors.floats.*
+import blue.sparse.math.vectors.ints.Vector3i
+import blue.sparse.math.vectors.ints.lengthSquared
 import java.awt.Color
-import java.io.File
+import kotlin.math.ceil
 import kotlin.random.Random
 
 class Eutaxy : SparseGame() {
 
-	val shader = ShaderProgram(Asset["shaders/fragment.fs"], Asset["shaders/vertex.vs"])
-//	val texture = Texture(Asset["textures/default/diffuse.png"])
+	val shader = ShaderProgram(Asset["shaders/voxel.fs"], Asset["shaders/voxel.vs"])
+	val texture = Texture(Asset["textures/developer/diffuse.png"])
 
-	private val models = ArrayList<ChunkModel>()
+//	private val models = ArrayList<ChunkModel>()
 
-//	val testMesh = run {
-//		val parent = object : ChunkParent {
-//			override fun replace(id: Long, chunk: VoxelChunk) {}
-//		}
-//
-//		val chunk = DetailedChunk(parent, 0L, 256)
-//		for (x in 0..chunk.size) {
-//			for(z in 0..chunk.size) {
-//				val ty = Perlin.noise(x.toFloat(), 0f, z.toFloat(), 2, 0.05f, 0.05f) * 8 + chunk.size / 2
-//				for(y in 0..ty.toInt()) {
-//					chunk[x, y, z] = Voxel(0xFFFFFFFF.toInt())
-//				}
-//			}
-//		}
-//
-//		chunk.generateModel()
-//	}
-
-//	val chunk: DetailedChunk
+//	var chunk: VoxelChunk
+	val world = World(6)
 
 	init {
 		scene.add(Skybox(Asset["textures/skybox.png"]))
@@ -57,104 +40,162 @@ class Eutaxy : SparseGame() {
 			controller = FirstPerson(this)
 		}
 
-//		scene.add(ModelComponent(testMesh.first.toModel(), arrayOf(testMesh.second)))
-
 		window.vSync = false
 
-		val parent = object : ChunkParent {
-			override fun replace(id: Long, chunk: VoxelChunk) {}
-		}
+		for(rx in 0 until 1024) {
+			println(rx)
+			for(rz in 0 until 1024) {
+				val ty = Perlin.noise(rx.toFloat(), 0f, rz.toFloat(), 6, 0.4f, 0.01f) * 16 + 48
 
-//		chunk = DetailedChunk(parent, 0L, 64)
-//		for(x in 0 until chunk.size) {
-//			for (z in 0 until chunk.size) {
-//				chunk[x, 0, z] = Voxel(255, 255, 255)
-//			}
-//		}
-		val folder = File("chunks")
-		folder.mkdirs()
-		for(cx in 0 until 16) {
-			for(cz in 0 until 16) {
-				println("$cx $cz")
-				val chunk = DetailedChunk(parent, 0L, 128)
-				val file = File(folder, "${cx}_$cz.euc")
-				if(file.exists()) {
-					chunk.fromFile(file)
-					println("Read data $cx $cz")
-				}else{
-					for (x in 0..chunk.size) {
-						val rx = cx * chunk.size + x
-						for(z in 0..chunk.size) {
-							val rz = cz * chunk.size + z
+				for (y in 0..ty.toInt()) {
+					val saturation = Perlin.noise(rx.toFloat(), y.toFloat(), rz.toFloat(), 2, 0.1f, 0.01f)
 
-							val ty = if(rx == 16 && rz == 16)
-								chunk.size - 1f
-							else
-								Perlin.noise(rx.toFloat(), 0f, rz.toFloat(), 8, 0.5f, 0.005f) * 64 + 48
-
-							for(y in 0..ty.toInt()) {
-								val hue = Perlin.noise(rx.toFloat(), y.toFloat(), rz.toFloat(), 1, 0.1f, 0.003f)
-
-								chunk[x, y, z] = Voxel(Color.HSBtoRGB(hue, 0.8f, 0.5f) or 0xFF000000.toInt())
-//							chunk[x, y, z] = Voxel(100, 128 + Random.nextInt(32), 80)
-							}
-						}
-					}
-					println("Write data $cx $cz")
-					chunk.toFile(file)
+					world[rx, y, rz] = Voxel(Color.HSBtoRGB(
+						0.363888f,
+						saturation * 0.4f + 0.6f,
+						Random.nextFloat() * 0.1f + 0.5f
+					) or 0xFF000000.toInt())
 				}
-
-				val r = chunk.size / 4f
-				models.add(chunk.generateModel(Vector3f(cx * r, 0f, cz * r)))
 			}
 		}
 
-//		scene.add(ModelComponent(WavefrontModelLoader.load(Asset["models/smooth_sphere.obj"]), arrayOf(texture)))
+//		val image = Asset["oak_planks.png"].readImage()
+//		for(cx in 0 until 64) {
+//			for(cz in 0 until 64) {
+//				for(x in 0 until image.width) {
+//					for(z in 0 until image.height) {
+//						val rx = cx * image.width + x
+//						val rz = cz * image.height + z
+//
+//						val voxel = Voxel(image.getRGB(x, z))
+//						for(y in 0 until 16) {
+//							world[rx, y, rz] = voxel
+//						}
+//					}
+//				}
+//			}
+//		}
+
+//		for(x in 0 until 512) {
+//			for(z in 0 until 512) {
+//				world[x, 0, z] = Voxel(200, 200, 200 + Random.nextInt(55))
+//			}
+//		}
+
+//		chunk = DetailedChunk(parent, Vector3i(0), 64)
+//		for(x in 0 until chunk.size)
+//			for(z in 0 until chunk.size)
+//				chunk[x, 0, z] = Voxel(255, 255, 255)
+	}
+
+	private fun getTargetBlocks(): Pair<Vector3i, Vector3i>? {
+		val origin = (camera.transform.translation) * 4f
+		val direction = camera.transform.rotation.forward
+
+		val pos = origin.clone()
+		val step = 1f / 4f
+		for(i in 0..512) {
+			val voxel = world[pos.toIntVector()]
+			if(!voxel.isEmpty) {
+				val prev = pos - (direction * step)
+				val toPlaceInt = prev.toIntVector()
+				val toBreakInt = pos.toIntVector()
+
+				return toPlaceInt to toBreakInt
+			}
+
+			pos += direction * step
+		}
+
+		return null
+	}
+
+//	fun deleteModels() {
+//		models.removeAll {
+//			it.delete()
+//			true
+//		}
+//	}
+
+	private var lastTargets = getTargetBlocks()
+	private var time = 0f
+
+	inline fun sphere(origin: Vector3i, radius: Float, apply: (Vector3i) -> Voxel) {
+		val ri = ceil(radius).toInt()
+		for(x in -ri..ri) {
+			for(y in -ri..ri) {
+				for(z in -ri..ri) {
+					val v = Vector3i(x, y, z)
+					if(lengthSquared(v.toFloatVector()) >= radius * radius)
+						continue
+
+					val position = origin + v
+					world[position] = apply(position)
+				}
+			}
+		}
 	}
 
 	override fun update(delta: Float) {
 		super.update(delta)
+		time += delta
 
-//		if(input[MouseButton.RIGHT].pressed || input[MouseButton.RIGHT].heldTime > 0.3f) {
-//			val origin = (camera.transform.translation * 16f)
-//			val direction = camera.transform.rotation.forward
-//
-//			val pos = origin.clone()
-//			val step = 1f / 4f
-//			for(i in 0..128) {
-//				val voxel = chunk[pos.toIntVector()]
-//				if(voxel?.isEmpty == false) {
-//					val prev = pos - (direction * step)
-//					val toPlaceInt = prev.toIntVector()
-//					chunk[toPlaceInt] = Voxel(0, 85, 255)
-//
-//					val model = models.firstOrNull() ?: return
-//					models.remove(model)
-//					model.delete()
-//					break
+		if(input[Key.R].pressed) {
+			val targets = getTargetBlocks()
+			targets?.first?.let {
+				sphere(it, 100f) {
+					Voxel(Color.HSBtoRGB(0.58888f, Random.nextFloat() * 0.1f + 0.15f, 0.75f))
+				}
+			}
+		}
+
+		if(input[MouseButton.RIGHT].held) {
+			val targets = getTargetBlocks()
+			targets?.first?.let {
+				sphere(it, 2.5f) {
+					Voxel(Color.HSBtoRGB(0.58888f, Random.nextFloat() * 0.1f + 0.15f, 0.75f))
+				}
+			}
+		}
+
+		if(input[MouseButton.LEFT].held) {
+			val targets = getTargetBlocks()
+			targets?.first?.let {
+//				if(distance(it.toFloatVector() / 4f, camera.transform.translation) > 8f) {
+					sphere(it, 2.5f) { Voxel.empty }
 //				}
-//
-//				pos += direction * step
-//			}
-
-//			println(pos)
-//			chunk[pos] = Voxel(0, 85, 255)
-//			val model = models.firstOrNull() ?: return
-//			models.remove(model)
-//			model.delete()
-//		}
-
+			}
+		}
 	}
 
 	override fun render(delta: Float) {
-		scene.render(delta, camera, shader)
+
 //		if(models.isEmpty()) {
-//			models.add(chunk.generateModel(Vector3f(0f)))
+//			models.add(OfflineChunkModel(chunk).generateModel(Vector3f(0f)))
 //		}
 
-		shader.bind {
-			models.forEach { it.render(camera, shader) }
+		PostProcessing.frameBuffer.bind {
+			clear()
+
+//			glCall { glPolygonMode(GL_FRONT_AND_BACK, GL_FILL) }
+//			glCall { glEnable(GL_CULL_FACE) }
+			scene.render(delta, camera, shader)
+
+//			val wireframeButton = input[Key.F]
+//			if (wireframeButton.held) {
+//				glCall { glPolygonMode(GL_FRONT_AND_BACK, GL_LINE) }
+//				glCall { glDisable(GL_CULL_FACE) }
+//			}
+
+			shader.bind {
+				uniforms["uTexture"] = 0
+				world.render(camera, shader)
+
+//				models.forEach { it.render(camera, shader) }
+			}
 		}
+
+		PostProcessing.render()
 
 	}
 }
