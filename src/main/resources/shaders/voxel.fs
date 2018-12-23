@@ -37,7 +37,7 @@ void main() {
         if(adj <= 0.1) {
             vec2 subTexture2 = subTexture * 2 - 1;
             float dot = (dot(subTexture2, axis) * 0.5 + 0.5);
-            dot = pow(dot, 6) * 0.2;
+            dot = pow(dot, 4) * 0.2; // pow was 6
             texColor *= vec4(vec3(1 - dot), 1);
         }
     }

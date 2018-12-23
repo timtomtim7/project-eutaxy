@@ -15,12 +15,12 @@ class OfflineChunkTexture {
 
 	private val sprites = ArrayList<Sprite>()
 
-	fun addSprite(image: BufferedImage): Sprite {
-		val size = Vector2i(image.width, image.height) + 2
+	fun addSprite(width: Int, height: Int, colors: IntArray): Sprite {
+		val size = Vector2i(width, height) + 2
 		val position = findAvailableSpace(size)
 
 //		texture.subImage(image, position)
-		val sprite = Sprite(position, size, image)
+		val sprite = Sprite(position, size, colors)
 		sprites.add(sprite)
 
 		return sprite
@@ -28,12 +28,19 @@ class OfflineChunkTexture {
 
 	fun renderToImage(): BufferedImage {
 		val result = BufferedImage(max(size.x, 1), max(size.y, 1), BufferedImage.TYPE_INT_ARGB)
-		val graphics = result.createGraphics()
-		graphics.color = Color(0, 0, 0, 0)
-		graphics.fillRect(0, 0, result.width, result.height)
 
 		for (sprite in sprites) {
-			graphics.drawImage(sprite.image, sprite.min.x + 1, sprite.min.y + 1, null)
+			// Offset min by 1 to leave 1 pixel border
+			// Subtract 2 from size to balance the 2 added to size for the 1 pixel border
+			result.setRGB(
+				sprite.min.x + 1,
+				sprite.min.y + 1,
+				sprite.size.x - 2,
+				sprite.size.y - 2,
+				sprite.colors,
+				0,
+				sprite.size.x - 2
+			)
 		}
 
 //		ImageIO.write(result, "PNG", File("atlas.png"))
@@ -115,18 +122,20 @@ class OfflineChunkTexture {
 		return null
 	}
 
-	inner class Sprite(pos: Vector2i, size: Vector2i, val image: BufferedImage) {
+	inner class Sprite(pos: Vector2i, size: Vector2i, val colors: IntArray) {
+		val size = size.clone()
+
 		val min = pos.clone()
-			get() = field.clone()
+//			get() = field.clone()
 
 		val max = pos + size
-			get() = field.clone()
+//			get() = field.clone()
 
-		val textureCoords: Vector4f
-			get() = Vector4f(
-				min.toFloatVector() / size.toFloatVector(),
-				max.toFloatVector() / size.toFloatVector()
-			)
+//		val textureCoords: Vector4f
+//			get() = Vector4f(
+//				min.toFloatVector() / size.toFloatVector(),
+//				max.toFloatVector() / size.toFloatVector()
+//			)
 
 //		val atlas = this@OfflineChunkTexture
 	}

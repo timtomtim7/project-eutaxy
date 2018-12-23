@@ -12,5 +12,5 @@ fun main(args: Array<String>) {
 		false,
 		true,
 		Window.Mode.NORMAL
-	), Eutaxy::class/*, 200.0*/)
+	), Eutaxy::class/*, 300.0*/)
 }

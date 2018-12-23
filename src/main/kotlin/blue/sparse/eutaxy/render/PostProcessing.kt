@@ -26,7 +26,7 @@ object PostProcessing {
 
 	val frameBuffer = FrameBuffer().apply {
 		val window = SparseEngine.window
-		addColorAttachment(Texture(window.width * 2, window.height * 2))
+		addColorAttachment(Texture((window.width * 1.5).toInt(), (window.height * 1.5).toInt()))
 		addDepthBuffer()
 	}
 

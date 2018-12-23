@@ -13,7 +13,7 @@ class ChunkModel(val position: Vector3f, val vertexArray: VertexArray, val textu
 	val triCount = vertexArray.size / 3
 
 	fun render(camera: Camera, shader: ShaderProgram) {
-		texture.bind(0)
+		texture.bind()
 		shader.uniforms["uViewProj"] = camera.viewProjectionMatrix
 		shader.uniforms["uModel"] = modelMatrix
 		shader.uniforms["uAtlasSize"] = texture.size.toFloatVector()
