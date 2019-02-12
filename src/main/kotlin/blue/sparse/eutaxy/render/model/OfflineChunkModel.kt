@@ -106,23 +106,13 @@ class OfflineChunkModel(val chunk: VoxelChunk) {
 		layout.add<Vector2i>() // Texture Coordinate
 		layout.add<Vector3f>() // Normal
 
-//		var start = System.currentTimeMillis()
-//		fun printTimeAndReset(name: String) {
-//			val now = System.currentTimeMillis()
-//			val diff = now - start
-//			println("$name took ${diff}ms")
-//			start = now
-//		}
-
 		val glArray = VertexArray()
 		glArray.add(buffer, layout)
-//		printTimeAndReset("Uploading array")
 
 		val glTexture = Texture(textureWidth, textureHeight, texture).apply {
 			nearestFiltering()
 			clampToEdge()
 		}
-//		printTimeAndReset("Uploading texture ($textureWidth * $textureHeight = ${textureWidth * textureHeight})")
 
 		return ChunkModel(position, Vector3f(chunk.size.toFloat() * World.VOXEL_SIZE), glArray, glTexture)
 	}
