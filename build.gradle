@@ -12,14 +12,17 @@ project.ext.lwjglNatives = "natives-windows"
 
 mainClassName = "blue.sparse.eutaxy.MainKt"
 applicationDefaultJvmArgs = [
-        "-Xmx6G",
-        "-XX:+UnlockExperimentalVMOptions",
-        "-XX:+UseG1GC",
-        "-XX:G1NewSizePercent=20",
-        "-XX:G1ReservePercent=20",
-        "-XX:MaxGCPauseMillis=50",
-        "-XX:G1HeapRegionSize=16M"
+        "-Xmx6G", "-Xms32M", "-Xmn64M", "-XX:+UseG1GC", "-XX:ParallelGCThreads=8"
 ]
+//applicationDefaultJvmArgs = [
+//        "-Xmx6G",
+//        "-XX:+UnlockExperimentalVMOptions",
+//        "-XX:+UseG1GC",
+//        "-XX:G1NewSizePercent=20",
+//        "-XX:G1ReservePercent=20",
+//        "-XX:MaxGCPauseMillis=50",
+//        "-XX:G1HeapRegionSize=16M"
+//]
 
 repositories {
     mavenCentral()
@@ -54,4 +57,8 @@ compileKotlin {
 }
 compileTestKotlin {
     kotlinOptions.jvmTarget = "1.8"
+}
+
+jar {
+    from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
 }
