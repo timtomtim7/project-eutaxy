@@ -2,6 +2,7 @@
 
 uniform sampler2D uTexture;
 //uniform sampler2D uDevTexture;
+uniform vec3 uCameraPosition;
 uniform vec2 uAtlasSize;
 
 in vec4 vPosition;
@@ -27,6 +28,9 @@ void main() {
     if(texColor.a <= 0.1)
         discard;
 
+    float dist = 1 - clamp(distance(uCameraPosition, vPosition.xyz) / 8, 0, 1);
+    float shading = 1;
+
     vec2 scaled = vTexCoord * uAtlasSize;
     vec2 center = floor(scaled) + 0.5;
     vec2 subTexture = fract(scaled);
@@ -37,14 +41,16 @@ void main() {
         if(adj <= 0.1) {
             vec2 subTexture2 = subTexture * 2 - 1;
             float dot = (dot(subTexture2, axis) * 0.5 + 0.5);
-            dot = pow(dot, 4) * 0.2; // pow was 6
-            texColor *= vec4(vec3(1 - dot), 1);
+            dot = pow(dot, 4) * 0.3; // pow was 6
+//            texColor *= vec4(vec3(1 - dot), 1);
+            shading *= 1 - dot;
         }
     }
 
+    texColor *= 1 - ((1 - shading) * dist);
     texColor.a = 1;
 
-	float brightness = dot(vNormal, normalize(vec3(0.3,1.0,-0.4))) * 0.5 + 0.5;
+	float brightness = 1;//clamp(dot(vNormal, normalize(vec3(0.3,1.0,-0.4))) * 0.5 + 0.5, 0, 1);
 
 	fColor = texColor * brightness;
 	//vec4(vNormal * 0.5 + 0.5, 1.0);

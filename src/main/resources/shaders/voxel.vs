@@ -16,7 +16,7 @@ void main() {
 	vTexCoord = aTexCoord / uAtlasSize;
 	vNormal = normalize((vec4(aNormal, 0.0) * uModel).xyz);
 //	gl_Position = vec4(aPosition, 1) * viewProj;
-	vec4 position = (vec4(aPosition, 1) * uModel) * uViewProj;
+	vec4 position = (vec4(aPosition, 1) * uModel);
 	vPosition = position;
-	gl_Position = position;
+	gl_Position = position * uViewProj;
 }

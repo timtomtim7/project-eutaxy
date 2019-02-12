@@ -4,15 +4,18 @@ import blue.sparse.engine.render.resource.Texture
 import blue.sparse.engine.render.resource.model.VertexArray
 import blue.sparse.engine.render.resource.model.VertexBuffer
 import blue.sparse.engine.render.resource.model.VertexLayout
+import blue.sparse.engine.util.ColorFormat
 import blue.sparse.eutaxy.render.texture.OfflineChunkTexture
+import blue.sparse.eutaxy.voxel.World
 import blue.sparse.eutaxy.voxel.chunks.VoxelChunk
+import blue.sparse.extensions.toByteBuffer
 import blue.sparse.math.vectors.floats.*
 import blue.sparse.math.vectors.ints.*
 import java.awt.image.BufferedImage
 import java.nio.ByteBuffer
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.system.measureTimeMillis
 
 class OfflineChunkModel(val chunk: VoxelChunk) {
 
@@ -20,7 +23,9 @@ class OfflineChunkModel(val chunk: VoxelChunk) {
 	var generated: Boolean = false
 		private set
 
-	private lateinit var texture: BufferedImage
+	private var textureWidth: Int = 0
+	private var textureHeight: Int = 0
+	private lateinit var texture: ByteBuffer
 	private lateinit var buffer: ByteBuffer
 
 	fun generate() {
@@ -44,10 +49,10 @@ class OfflineChunkModel(val chunk: VoxelChunk) {
 			val maxA = shape.maxA.toFloat() + 1f
 			val minB = shape.minB.toFloat()
 			val maxB = shape.maxB.toFloat() + 1f
-			val v00 = rearrange(Vector3f(minA, minB, c), ia, ib, ic) / 8f
-			val v10 = rearrange(Vector3f(maxA, minB, c), ia, ib, ic) / 8f
-			val v11 = rearrange(Vector3f(maxA, maxB, c), ia, ib, ic) / 8f
-			val v01 = rearrange(Vector3f(minA, maxB, c), ia, ib, ic) / 8f
+			val v00 = rearrange(Vector3f(minA, minB, c), ia, ib, ic) * World.VOXEL_SIZE
+			val v10 = rearrange(Vector3f(maxA, minB, c), ia, ib, ic) * World.VOXEL_SIZE
+			val v11 = rearrange(Vector3f(maxA, maxB, c), ia, ib, ic) * World.VOXEL_SIZE
+			val v01 = rearrange(Vector3f(minA, maxB, c), ia, ib, ic) * World.VOXEL_SIZE
 
 			val sprite = atlas.addSprite(quad.colors.width, quad.colors.height, quad.colors.colors)
 			val texCoords = Vector4i(sprite.min + 1, sprite.max - 1)
@@ -75,8 +80,23 @@ class OfflineChunkModel(val chunk: VoxelChunk) {
 			}
 		}
 
+		/*
+
+		Voxel -> Atlas
+		Atlas -> Buffer
+		Buffer -> OpenGL
+
+		 */
+
 		this.buffer = buffer.toByteBuffer()
-		this.texture = atlas.renderToImage()
+//		val textureImage = atlas.renderToImage()
+//		textureWidth = textureImage.width
+//		textureHeight = textureImage.height
+//		texture = textureImage.toByteBuffer(ColorFormat.RGBA)
+		textureWidth = atlas.size.x
+		textureHeight = atlas.size.y
+		texture = atlas.renderToBuffer()
+
 		generated = true
 	}
 
@@ -86,13 +106,25 @@ class OfflineChunkModel(val chunk: VoxelChunk) {
 		layout.add<Vector2i>() // Texture Coordinate
 		layout.add<Vector3f>() // Normal
 
-		val array = VertexArray()
-		array.add(buffer, layout)
+//		var start = System.currentTimeMillis()
+//		fun printTimeAndReset(name: String) {
+//			val now = System.currentTimeMillis()
+//			val diff = now - start
+//			println("$name took ${diff}ms")
+//			start = now
+//		}
 
-		return ChunkModel(position, array, Texture(texture).apply {
+		val glArray = VertexArray()
+		glArray.add(buffer, layout)
+//		printTimeAndReset("Uploading array")
+
+		val glTexture = Texture(textureWidth, textureHeight, texture).apply {
 			nearestFiltering()
 			clampToEdge()
-		})
+		}
+//		printTimeAndReset("Uploading texture ($textureWidth * $textureHeight = ${textureWidth * textureHeight})")
+
+		return ChunkModel(position, Vector3f(chunk.size.toFloat() * World.VOXEL_SIZE), glArray, glTexture)
 	}
 
 	private enum class Side(val axisIndex: Int, val offsetX: Int, val offsetY: Int, val offsetZ: Int) {
@@ -101,7 +133,6 @@ class OfflineChunkModel(val chunk: VoxelChunk) {
 		POSITIVE_Z(2, 0, 0, 1),
 		NEGATIVE_X(0, -1, 0, 0),
 		NEGATIVE_Y(1, 0, -1, 0),
-
 		NEGATIVE_Z(2, 0, 0, -1);
 
 		val inverse: Side

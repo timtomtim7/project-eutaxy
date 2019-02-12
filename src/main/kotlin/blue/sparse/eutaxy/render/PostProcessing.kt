@@ -24,13 +24,12 @@ object PostProcessing {
 
 	private val shader = ShaderProgram(Asset["shaders/screen.fs"], Asset["shaders/screen.vs"])
 
-	val frameBuffer = FrameBuffer().apply {
-		val window = SparseEngine.window
-		addColorAttachment(Texture((window.width * 1.5).toInt(), (window.height * 1.5).toInt()))
-		addDepthBuffer()
-	}
+	lateinit var frameBuffer: FrameBuffer
+		private set
 
 	init {
+		resetFrameBuffer()
+
 		layout.add<Vector2f>()
 		layout.add<Vector2f>()
 
@@ -41,6 +40,14 @@ object PostProcessing {
 
 		array.add(buffer, layout)
 		array.setIndices(intArrayOf(0, 1, 2, 0, 2, 3))
+	}
+
+	fun resetFrameBuffer() {
+		frameBuffer = FrameBuffer().apply {
+			val window = SparseEngine.window
+			addColorAttachment(Texture((window.width * 1.5).toInt(), (window.height * 1.5).toInt()))
+			addDepthBuffer()
+		}
 	}
 
 	fun render() {

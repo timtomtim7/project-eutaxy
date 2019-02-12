@@ -3,26 +3,21 @@ package blue.sparse.eutaxy.voxel.chunks
 import blue.sparse.eutaxy.voxel.Voxel
 import blue.sparse.math.vectors.ints.Vector3i
 
-class EmptyChunk(parent: ChunkParent, parentRelativePosition: Vector3i, size: Int) :
+class FullChunk(parent: ChunkParent, parentRelativePosition: Vector3i, size: Int, var fullVoxel: Voxel) :
 	VoxelChunk(parent, parentRelativePosition, size) {
 
-//	init {
-//		println("Created empty chunk")
-//	}
-
 	override fun get(x: Int, y: Int, z: Int): Voxel {
-		return Voxel.empty
+		return fullVoxel
 	}
 
 	override fun set(x: Int, y: Int, z: Int, voxel: Voxel) {
-		if (voxel.isEmpty)
+		if (voxel == fullVoxel)
 			return
 
-//		val replacement = DetailedChunk(parent, parentRelativePosition, size)
 		val replacement = if (size > 32) {
-			DividedChunk(parent, parentRelativePosition, size)
+			DividedChunk(parent, parentRelativePosition, size, fullVoxel)
 		} else {
-			DetailedChunk(parent, parentRelativePosition, size)
+			DetailedChunk(parent, parentRelativePosition, size, fullVoxel)
 		}
 
 		replacement[x, y, z] = voxel

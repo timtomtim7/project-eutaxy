@@ -7,6 +7,7 @@ import blue.sparse.eutaxy.render.model.ChunkModel
 import blue.sparse.eutaxy.render.model.OfflineChunkModel
 import blue.sparse.eutaxy.voxel.chunks.ChunkParent
 import blue.sparse.eutaxy.voxel.chunks.EmptyChunk
+import blue.sparse.eutaxy.voxel.chunks.FullChunk
 import blue.sparse.eutaxy.voxel.chunks.VoxelChunk
 import blue.sparse.math.vectors.floats.Axis
 import blue.sparse.math.vectors.floats.Vector3f
@@ -78,12 +79,13 @@ class World(val chunkSizeBits: Int) : ChunkParent {
 
 	private fun getChunk(x: Int, y: Int, z: Int): VoxelChunk {
 		val pos = Vector3i(x, y, z)
-		return loaded.getOrPut(pos) { EmptyChunk(this, pos, chunkSize) }
+		return loaded.getOrPut(pos) {
+//			if(pos.y < 0)
+//				FullChunk(this, pos, chunkSize, Voxel(255, 255, 255))
+//			else
+				EmptyChunk(this, pos, chunkSize)
+		}
 	}
-
-//	private fun getChunk(pos: Vector3i): VoxelChunk {
-//		return loaded.getOrPut(pos) { EmptyChunk(this, pos, chunkSize) }
-//	}
 
 	override fun replace(chunk: VoxelChunk) {
 		if (chunkSize != chunk.size)
@@ -122,15 +124,15 @@ class World(val chunkSizeBits: Int) : ChunkParent {
 		waitingToModel.add(position)
 		executors.submit {
 			waitingToModel.remove(position)
-			val ms = measureTimeMillis {
+//			val ms = measureTimeMillis {
 				val offline = OfflineChunkModel(chunk)
 				offline.generate()
 				if(position in queueToModel)
 					return@submit
 				queueToUpload.add(offline)
-			}
+//			}
 
-			println("Generating model took ${ms}ms")
+//			println("Generating model took ${ms}ms")
 		}
 	}
 
@@ -140,37 +142,50 @@ class World(val chunkSizeBits: Int) : ChunkParent {
 		if(position in queueToModel)
 			return processQueueToUpload()
 
-		val ms = measureTimeMillis {
-			val worldPos = Vector3f((position.x shl chunkSizeBits).toFloat(), (position.y shl chunkSizeBits).toFloat(), (position.z shl chunkSizeBits).toFloat()) / 8f
+//		val ms = measureTimeMillis {
+			val worldPos = Vector3f(
+				(position.x shl chunkSizeBits).toFloat(),
+				(position.y shl chunkSizeBits).toFloat(),
+				(position.z shl chunkSizeBits).toFloat()
+			) * World.VOXEL_SIZE
 			models.remove(position)?.delete()
 			models[position] = model.upload(worldPos)
 //			models.put(position, model.upload(worldPos))?.delete()
-		}
+//		}
 
-		println("Uploading model took ${ms}ms")
+//		println("Uploading model took ${ms}ms")
 	}
 
 	fun render(camera: Camera, shader: ShaderProgram) {
-		while(queueToModel.isNotEmpty())
-			processQueueToModel()
-		while(queueToUpload.isNotEmpty())
-			processQueueToUpload()
-
-//		shader.uniforms["uTexture"] = 0
-//		val frameStart = System.nanoTime()
-		StateManager.activeTexture = 0
-		for (model in models.values) {
-//			val frameTime = System.nanoTime() - frameStart
-//			if(frameTime > 5e+6)
+//		for(i in 0 until 4) {
+//			if(queueToModel.isEmpty())
 //				break
+//		}
+//		while(queueToModel.isNotEmpty()) {
+//			println("to model size = ${queueToModel.size}")
+			processQueueToModel()
+//		}
+//		while(queueToUpload.isNotEmpty()) {
+//			println("to upload size = ${queueToUpload.size}")
+			processQueueToUpload()
+//		}
 
+		StateManager.activeTexture = 0
+
+		for (model in models.values) {
 			model.render(camera, shader)
 		}
 	}
 
 	companion object {
-		private val executors = Executors.newFixedThreadPool(5) {
-			Executors.defaultThreadFactory().newThread(it).apply { isDaemon = true }
+		const val VOXELS_PER_UNIT = 6f
+		const val VOXEL_SIZE = 1f / VOXELS_PER_UNIT
+
+		private val executors = Executors.newFixedThreadPool(6) {
+			Executors.defaultThreadFactory().newThread(it).apply {
+				priority = Thread.NORM_PRIORITY + 1
+				isDaemon = true
+			}
 		}
 	}
 

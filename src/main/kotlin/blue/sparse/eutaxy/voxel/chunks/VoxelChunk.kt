@@ -10,16 +10,8 @@ abstract class VoxelChunk(val parent: ChunkParent, parentRelativePosition: Vecto
 
 	val volume: Int = size * size * size
 
-	abstract operator fun get(index: Int): Voxel
-	abstract operator fun set(index: Int, voxel: Voxel)
-
-	operator fun get(x: Int, y: Int, z: Int): Voxel {
-		return get(getIndex(x, y, z))
-	}
-
-	operator fun set(x: Int, y: Int, z: Int, voxel: Voxel) {
-		set(getIndex(x, y, z), voxel)
-	}
+	abstract operator fun get(x: Int, y: Int, z: Int): Voxel
+	abstract operator fun set(x: Int, y: Int, z: Int, voxel: Voxel)
 
 	operator fun get(position: Vector3i): Voxel {
 		return get(position.x, position.y, position.z)
@@ -29,14 +21,11 @@ abstract class VoxelChunk(val parent: ChunkParent, parentRelativePosition: Vecto
 		set(position.x, position.y, position.z, voxel)
 	}
 
-	fun getIndex(x: Int, y: Int, z: Int): Int {
-		if(x < 0 || x >= size || y < 0 || y >= size || z < 0 || z >= size)
-			return -1
-		return x + (y * size) + (z * size * size)
-	}
-
 	override fun iterator(): Iterator<Voxel> {
-		return (0 until volume).asSequence().map(this::get).iterator()
+		return iterator {
+			for(x in 0 until size) for(y in 0 until size) for(z in 0 until size)
+				yield(get(x, y, z))
+		}
 	}
 
 }

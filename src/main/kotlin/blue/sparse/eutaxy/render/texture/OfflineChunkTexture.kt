@@ -1,19 +1,16 @@
 package blue.sparse.eutaxy.render.texture
 
 import blue.sparse.engine.render.resource.Texture
-import blue.sparse.math.vectors.floats.Vector4f
 import blue.sparse.math.vectors.ints.Vector2i
-import java.awt.Color
 import java.awt.image.BufferedImage
-import java.io.File
-import javax.imageio.ImageIO
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.max
 
 class OfflineChunkTexture {
 
-	private val size = Vector2i(0, 0)
-
 	private val sprites = ArrayList<Sprite>()
+	val size = Vector2i(0, 0)
 
 	fun addSprite(width: Int, height: Int, colors: IntArray): Sprite {
 		val size = Vector2i(width, height) + 2
@@ -24,6 +21,35 @@ class OfflineChunkTexture {
 		sprites.add(sprite)
 
 		return sprite
+	}
+
+	fun renderToBuffer(): ByteBuffer {
+		val sizeX = max(size.x, 1)
+		val sizeY = max(size.y, 1)
+		val result = ByteBuffer.allocateDirect(sizeX * sizeY * 4)//.order(ByteOrder.nativeOrder())
+
+		for(sprite in sprites) {
+			val minX = sprite.min.x + 1
+			val minY = sprite.min.y + 1
+			val width = sprite.size.x - 2
+			val height = sprite.size.y - 2
+			val colors = sprite.colors
+
+			for(x in 0 until width) {
+				for(y in 0 until height) {
+					val color = colors[x + y * width]
+
+					val bufferIndex = ((x + minX) + (y + minY) * sizeX)
+
+					// Reorder from ARGB to RGBA
+					val alpha = (color shr 24) and 0xFF
+					result.putInt(bufferIndex * 4, (color shl 8) or alpha)
+				}
+			}
+		}
+
+		result.flip()
+		return result
 	}
 
 	fun renderToImage(): BufferedImage {
@@ -43,7 +69,9 @@ class OfflineChunkTexture {
 			)
 		}
 
-//		ImageIO.write(result, "PNG", File("atlas.png"))
+//		val f = File("atlas.png")
+//		if(!f.exists())
+//			ImageIO.write(result, "PNG", f)
 
 		return result
 	}
@@ -59,7 +87,7 @@ class OfflineChunkTexture {
 
 	private fun findAvailableSpace(spriteSize: Vector2i): Vector2i {
 		val min = Vector2i(0)
-		var free = fits(min, min + spriteSize)
+		var free = sprites.isEmpty()//fits(min, min + spriteSize)
 
 		if (free)
 			return min
