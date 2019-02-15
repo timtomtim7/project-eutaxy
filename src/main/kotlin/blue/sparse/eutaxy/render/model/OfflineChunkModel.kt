@@ -29,9 +29,38 @@ class OfflineChunkModel(val chunk: VoxelChunk) {
 	private lateinit var buffer: ByteBuffer
 
 	fun generate() {
-		val atlas = OfflineChunkTexture()
 		val buffer = VertexBuffer()
+		val atlas = OfflineChunkTexture()
 		val quads = generateQuads()
+
+		fillBufferAndAtlasWithQuads(buffer, atlas, quads)
+
+		this.buffer = buffer.toByteBuffer()
+		this.textureWidth = atlas.size.x
+		this.textureHeight = atlas.size.y
+		this.texture = atlas.renderToBuffer()
+
+		this.generated = true
+	}
+
+	fun upload(position: Vector3f): ChunkModel {
+		val layout = VertexLayout()
+		layout.add<Vector3f>() // Position
+		layout.add<Vector2i>() // Texture Coordinate
+		layout.add<Vector3f>() // Normal
+
+		val glArray = VertexArray()
+		glArray.add(buffer, layout)
+
+		val glTexture = Texture(textureWidth, textureHeight, texture).apply {
+			nearestFiltering()
+			clampToEdge()
+		}
+
+		return ChunkModel(position, Vector3f(chunk.size.toFloat() * World.VOXEL_SIZE), glArray, glTexture)
+	}
+
+	private fun fillBufferAndAtlasWithQuads(buffer: VertexBuffer, atlas: OfflineChunkTexture, quads: List<Quad>) {
 		for (quad in quads) {
 			val side = quad.side
 			val sideVector = side.vector
@@ -79,42 +108,6 @@ class OfflineChunkModel(val chunk: VoxelChunk) {
 				buffer.add(v10, t10, sideVector)
 			}
 		}
-
-		/*
-
-		Voxel -> Atlas
-		Atlas -> Buffer
-		Buffer -> OpenGL
-
-		 */
-
-		this.buffer = buffer.toByteBuffer()
-//		val textureImage = atlas.renderToImage()
-//		textureWidth = textureImage.width
-//		textureHeight = textureImage.height
-//		texture = textureImage.toByteBuffer(ColorFormat.RGBA)
-		textureWidth = atlas.size.x
-		textureHeight = atlas.size.y
-		texture = atlas.renderToBuffer()
-
-		generated = true
-	}
-
-	fun upload(position: Vector3f): ChunkModel {
-		val layout = VertexLayout()
-		layout.add<Vector3f>() // Position
-		layout.add<Vector2i>() // Texture Coordinate
-		layout.add<Vector3f>() // Normal
-
-		val glArray = VertexArray()
-		glArray.add(buffer, layout)
-
-		val glTexture = Texture(textureWidth, textureHeight, texture).apply {
-			nearestFiltering()
-			clampToEdge()
-		}
-
-		return ChunkModel(position, Vector3f(chunk.size.toFloat() * World.VOXEL_SIZE), glArray, glTexture)
 	}
 
 	private enum class Side(val axisIndex: Int, val offsetX: Int, val offsetY: Int, val offsetZ: Int) {
@@ -184,6 +177,7 @@ class OfflineChunkModel(val chunk: VoxelChunk) {
 		}
 
 		fun subsection(startX: Int, startY: Int, newWidth: Int, newHeight: Int): QuadColors {
+			// TODO: This was commented out. It appears to be for good reason, there were holes in models when this was uncommented.
 //			if (newWidth == width && newHeight == height)
 //				return this
 
@@ -221,14 +215,22 @@ class OfflineChunkModel(val chunk: VoxelChunk) {
 	private fun generateQuads(): List<Quad> {
 		val quads = ArrayList<Quad>()
 
-		generateQuadsForSideAndInverse(Side.POSITIVE_X, quads)
-		generateQuadsForSideAndInverse(Side.POSITIVE_Y, quads)
-		generateQuadsForSideAndInverse(Side.POSITIVE_Z, quads)
+		val negativeColors = QuadColors(chunk.size, chunk.size)
+		val positiveColors = QuadColors(chunk.size, chunk.size)
+
+		generateQuadsForSideAndInverse(Side.POSITIVE_X, quads, positiveColors, negativeColors)
+		generateQuadsForSideAndInverse(Side.POSITIVE_Y, quads, positiveColors, negativeColors)
+		generateQuadsForSideAndInverse(Side.POSITIVE_Z, quads, positiveColors, negativeColors)
 
 		return quads
 	}
 
-	private fun generateQuadsForSideAndInverse(side: Side, target: MutableCollection<Quad>) {
+	private fun generateQuadsForSideAndInverse(
+		side: Side,
+		target: MutableCollection<Quad>,
+		positiveColors: QuadColors,
+		negativeColors: QuadColors
+	) {
 		val ic = side.axisIndex
 		val ia = indexA[ic]
 		val ib = indexB[ic]
@@ -236,20 +238,20 @@ class OfflineChunkModel(val chunk: VoxelChunk) {
 		val inverseSide = side.inverse
 
 		val size = chunk.size
-		val negativeColors = QuadColors(size, size)
-		val positiveColors = QuadColors(size, size)
+
+		val v = Vector3i(0)
 
 		for (c in 0 until size) {
+			v[ic] = c
+
 			val positiveShape = QuadShape(c)
 			val negativeShape = QuadShape(c)
-
-			val v = Vector3i(0)
 
 			for (a in 0 until size) {
 				for (b in 0 until size) {
 					v[ia] = a
 					v[ib] = b
-					v[ic] = c
+//					v[ic] = c
 
 					if (isFaceVisible(v.x, v.y, v.z, side)) {
 						val voxel = chunk[v.x, v.y, v.z]

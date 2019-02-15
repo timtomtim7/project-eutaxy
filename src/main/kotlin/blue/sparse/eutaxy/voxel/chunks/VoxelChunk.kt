@@ -3,7 +3,7 @@ package blue.sparse.eutaxy.voxel.chunks
 import blue.sparse.eutaxy.voxel.Voxel
 import blue.sparse.math.vectors.ints.Vector3i
 
-abstract class VoxelChunk(val parent: ChunkParent, parentRelativePosition: Vector3i, val size: Int): Iterable<Voxel> {
+abstract class VoxelChunk(var parent: ChunkParent, parentRelativePosition: Vector3i, val size: Int): Iterable<Voxel> {
 
 	val parentRelativePosition: Vector3i = parentRelativePosition
 		get() = field.clone()

@@ -28,10 +28,12 @@ class World(val chunkSizeBits: Int) : ChunkParent {
 	private val loaded = ConcurrentHashMap<Vector3i, VoxelChunk>()
 	private val models = ConcurrentHashMap<Vector3i, ChunkModel>()
 
-//	private val queueToModel = ConcurrentLinkedQueue<Vector3i>()
 	private val queueToModel = ConcurrentHashMap.newKeySet<Vector3i>()
 	private val waitingToModel = ConcurrentHashMap.newKeySet<Vector3i>()
 	private val queueToUpload = ConcurrentLinkedQueue<OfflineChunkModel>()
+
+	val chunks: Collection<VoxelChunk>
+		get() = loaded.values
 
 	override fun getRelative(chunk: VoxelChunk, x: Int, y: Int, z: Int): Voxel {
 		if(x >= 0 && y >= 0 && z >= 0 && x < chunkSize && y < chunkSize && z < chunkSize)
@@ -77,20 +79,15 @@ class World(val chunkSizeBits: Int) : ChunkParent {
 		return getChunk(x shr chunkSizeBits, y shr chunkSizeBits, z shr chunkSizeBits)
 	}
 
-	private fun getChunk(x: Int, y: Int, z: Int): VoxelChunk {
+	fun getChunk(x: Int, y: Int, z: Int): VoxelChunk {
 		val pos = Vector3i(x, y, z)
 		return loaded.getOrPut(pos) {
-//			if(pos.y < 0)
-//				FullChunk(this, pos, chunkSize, Voxel(255, 255, 255))
-//			else
-				EmptyChunk(this, pos, chunkSize)
+			EmptyChunk(this, pos, chunkSize)
 		}
 	}
 
 	override fun replace(chunk: VoxelChunk) {
-		if (chunkSize != chunk.size)
-			throw IllegalArgumentException("Replacement chunk size must match the world's chunk size.")
-		loaded[chunk.parentRelativePosition] = chunk
+		replaceNoQueue(chunk)
 		queue(chunk.parentRelativePosition)
 
 		queue(chunk.parentRelativePosition + Vector3i(+1, 0, 0))
@@ -101,10 +98,19 @@ class World(val chunkSizeBits: Int) : ChunkParent {
 		queue(chunk.parentRelativePosition + Vector3i(0, 0, -1))
 	}
 
+	fun replaceNoQueue(chunk: VoxelChunk) {
+		if (chunkSize != chunk.size)
+			throw IllegalArgumentException("Replacement chunk size must match the world's chunk size.")
+		loaded[chunk.parentRelativePosition] = chunk
+	}
+
+	fun queueAll() {
+		loaded.keys.forEach(::queue)
+	}
+
 	private fun queue(position: Vector3i) {
-		if(position !in queueToModel && position !in waitingToModel) {
+		if(position in loaded.keys && position !in queueToModel && position !in waitingToModel) {
 			queueToModel.add(position)
-//			println("Queue size: ${queueToModel.size} | ${queueToUpload.size}")
 		}
 	}
 
@@ -124,15 +130,11 @@ class World(val chunkSizeBits: Int) : ChunkParent {
 		waitingToModel.add(position)
 		executors.submit {
 			waitingToModel.remove(position)
-//			val ms = measureTimeMillis {
-				val offline = OfflineChunkModel(chunk)
-				offline.generate()
-				if(position in queueToModel)
-					return@submit
-				queueToUpload.add(offline)
-//			}
-
-//			println("Generating model took ${ms}ms")
+			val offline = OfflineChunkModel(chunk)
+			offline.generate()
+			if(position in queueToModel)
+				return@submit
+			queueToUpload.add(offline)
 		}
 	}
 
@@ -142,33 +144,24 @@ class World(val chunkSizeBits: Int) : ChunkParent {
 		if(position in queueToModel)
 			return processQueueToUpload()
 
-//		val ms = measureTimeMillis {
-			val worldPos = Vector3f(
-				(position.x shl chunkSizeBits).toFloat(),
-				(position.y shl chunkSizeBits).toFloat(),
-				(position.z shl chunkSizeBits).toFloat()
-			) * World.VOXEL_SIZE
-			models.remove(position)?.delete()
-			models[position] = model.upload(worldPos)
-//			models.put(position, model.upload(worldPos))?.delete()
-//		}
+		val worldPos = Vector3f(
+			(position.x shl chunkSizeBits).toFloat(),
+			(position.y shl chunkSizeBits).toFloat(),
+			(position.z shl chunkSizeBits).toFloat()
+		) * World.VOXEL_SIZE
 
-//		println("Uploading model took ${ms}ms")
+		models.remove(position)?.delete()
+		models[position] = model.upload(worldPos)
 	}
 
 	fun render(camera: Camera, shader: ShaderProgram) {
-//		for(i in 0 until 4) {
-//			if(queueToModel.isEmpty())
-//				break
-//		}
-//		while(queueToModel.isNotEmpty()) {
-//			println("to model size = ${queueToModel.size}")
+		val start = System.currentTimeMillis()
+		while(queueToModel.isNotEmpty() && System.currentTimeMillis() - start < 5L) {
 			processQueueToModel()
-//		}
-//		while(queueToUpload.isNotEmpty()) {
-//			println("to upload size = ${queueToUpload.size}")
+		}
+		while(queueToUpload.isNotEmpty() && System.currentTimeMillis() - start < 5L) {
 			processQueueToUpload()
-//		}
+		}
 
 		StateManager.activeTexture = 0
 

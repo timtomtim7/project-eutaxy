@@ -58,6 +58,7 @@ class DividedChunk(parent: ChunkParent, parentRelativePosition: Vector3i, size: 
 		divisions[index] = chunk
 	}
 
+	// Note: This might not work as expected if the coordinates go outside of even this chunk.
 	override fun getRelative(chunk: VoxelChunk, x: Int, y: Int, z: Int): Voxel {
 		if (x >= 0 && y >= 0 && z >= 0 && x < divSize && y < divSize && z < divSize)
 			return chunk[x, y, z]

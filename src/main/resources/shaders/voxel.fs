@@ -28,9 +28,9 @@ void main() {
     if(texColor.a <= 0.1)
         discard;
 
-    float dist = 1 - clamp(distance(uCameraPosition, vPosition.xyz) / 16, 0, 1);
+    float dist = 1 - pow(clamp(distance(uCameraPosition, vPosition.xyz) / 8, 0, 1), 2);
 //    float shading = clamp(dot(vNormal, normalize(vec3(0.3,-0.4,1.0))) * 0.5 + 0.5, 0, 1);
-    float shading = clamp(dot(vNormal, normalize(vec3(0.3,1.0,-0.4))) * 0.5 + 0.5, 0, 1);
+    float shading = clamp(dot(vNormal, normalize(vec3(0.3,1.0,-0.4))) * 0.25 + 0.75, 0, 1);
 
     vec2 scaled = vTexCoord * uAtlasSize;
     vec2 center = floor(scaled) + 0.5;
@@ -42,7 +42,7 @@ void main() {
         if(adj <= 0.1) {
             vec2 subTexture2 = subTexture * 2 - 1;
             float dot = (dot(subTexture2, axis) * 0.5 + 0.5);
-            dot = pow(dot, 4) * 0.2; // pow was 6
+            dot = pow(dot, 4) * 0.25; // pow was 6
             shading *= 1 - dot;
         }
     }
